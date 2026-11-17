@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Збери ПК з нуля — Інтерактивний тренажер</title>
+    <!-- Підключення Tailwind CSS для сучасного адаптивного дизайну -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Підключення шрифту Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Підключення Tone.js для синтезованих звукових ефектів (без зовнішніх файлів) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            user-select: none;
+        }
+        /* Анімація обертання вентилятора кулера */
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .fan-spin {
+            animation: spinSlow 1.5s linear infinite;
+        }
+        /* Пульсація підсвітки слотів */
+        @keyframes pulseBorder {
+            0%, 100% { border-color: rgba(56, 189, 248, 0.4); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.2); }
+            50% { border-color: rgba(56, 189, 248, 1); box-shadow: 0 0 15px 2px rgba(56, 189, 248, 0.4); }
+        }
+        .slot-highlight {
+            animation: pulseBorder 1.8s infinite;
+        }
+        /* Ефект підсвічування RGB в системному блоці при запуску */
+        @keyframes rgbGlow {
+            0% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.6), inset 0 0 20px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
+            33% { box-shadow: 0 0 25px rgba(168, 85, 247, 0.6), inset 0 0 20px rgba(168, 85, 247, 0.3); border-color: #a855f7; }
+            66% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.6), inset 0 0 20px rgba(16, 185, 129, 0.3); border-color: #10b981; }
+            100% { box-shadow: 0 0 25px rgba(59, 130, 246, 0.6), inset 0 0 20px rgba(59, 130, 246, 0.3); border-color: #3b82f6; }
+        }
+        .pc-powered-on {
+            animation: rgbGlow 4s infinite linear;
+        }
+        /* Плавні переходи */
+        .smooth-transition {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-950 text-slate-100 overflow-x-hidden">
+
+    <!-- Верхня панель навігації та прогресу -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- Логотип та назва -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg sm:text-xl tracking-tight text-white">Збери ПК з нуля</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Інтерактивний симулятор заліза • 10 клас</p>
+                </div>
+            </div>
+
+            <!-- Перемикач етапів (рівнів) -->
+            <nav class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 overflow-x-auto max-w-full">
+                <button onclick="switchStage(1)" id="tab-1" class="stage-tab px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold smooth-transition flex items-center gap-2 whitespace-nowrap bg-sky-600 text-white shadow">
+                    <span>1. Збірка</span>
+                    <span id="badge-1" class="hidden w-2 h-2 rounded-full bg-emerald-400"></span>
+                </button>
+                <button onclick="switchStage(2)" id="tab-2" class="stage-tab px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold smooth-transition flex items-center gap-2 whitespace-nowrap text-slate-400 hover:text-white">
+                    <span>2. Бюджет</span>
+                    <span id="badge-2" class="hidden w-2 h-2 rounded-full bg-emerald-400"></span>
+                </button>
+                <button onclick="switchStage(3)" id="tab-3" class="stage-tab px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold smooth-transition flex items-center gap-2 whitespace-nowrap text-slate-400 hover:text-white">
+                    <span>3. Ремонт</span>
+                    <span id="badge-3" class="hidden w-2 h-2 rounded-full bg-emerald-400"></span>
+                </button>
+            </nav>
+
+            <!-- Кнопка звуку та рахунок -->
+            <div class="flex items-center gap-3">
+                <div class="bg-slate-800/80 border border-slate-700 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="text-amber-400 text-sm">★</span>
+                    <span class="text-xs sm:text-sm font-bold text-slate-200">Бали: <span id="total-score" class="text-sky-400">0</span></span>
+                </div>
+                <button onclick="toggleSound()" id="sound-btn" title="Увімкнути/вимкнути звук" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 smooth-transition">
+                    <svg id="sound-icon-on" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/>
+                    </svg>
+                    <svg id="sound-icon-off" class="w-5 h-5 hidden text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Головний контейнер контенту -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 py-6">
+
+        <!-- ========================================================= -->
+        <!-- ЕТАП 1: ЗБІРКА СИСТЕМНОГО БЛОКА (DRAG & DROP / CLICK)      -->
+        <!-- ========================================================= -->
+        <section id="stage-1" class="space-y-6">
+            <!-- Інструкція для учня -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <span class="inline-block px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-xs font-bold uppercase tracking-wider mb-1">Етап 1 • Базова архітектура</span>
+                    <h2 class="text-lg sm:text-xl font-bold text-white">Встанови всі комплектуючі в системний блок</h2>
+                    <p class="text-sm text-slate-400 mt-1">Перетягни деталь на потрібне місце на материнській платі <span class="text-sky-400 font-medium">(або просто натисни на деталь, а потім — на її слот)</span>.</p>
+                </div>
+                <div class="flex items-center gap-3 self-end sm:self-center">
+                    <div class="text-right">
+                        <div class="text-xs text-slate-400">Зібрано деталей</div>
+                        <div class="text-lg font-extrabold text-emerald-400"><span id="s1-installed-count">0</span> / 6</div>
+                    </div>
+                    <button onclick="resetStage1()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 border border-slate-700 smooth-transition">
+                        Скинути
+                    </button>
+                </div>
+            </div>
+
+            <!-- Робоча зона: Зліва деталі, Справа системний блок -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                <!-- Панель комплектуючих (Стіл майстра) -->
+                <div class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-5">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+                        <span>Комплектуючі на столі</span>
+                        <span class="text-xs font-normal text-slate-500">Обери деталь</span>
+                    </h3>
+                    
+                    <div id="parts-inventory" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3">
+                        <!-- Картки деталей генеруються через JS -->
+                    </div>
+
+                    <!-- Картка-підказка з поясненням функції деталі -->
+                    <div id="part-info-box" class="mt-4 p-4 rounded-xl bg-slate-950 border border-slate-800 min-h-[105px] flex flex-col justify-center">
+                        <div class="flex items-center gap-2 text-sky-400 font-bold text-sm mb-1">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span id="info-title">Довідник майстра</span>
+                        </div>
+                        <p id="info-desc" class="text-xs sm:text-sm text-slate-400 leading-relaxed">
+                            Натисни на будь-яку деталь вище або перетягни її в корпус, щоб дізнатися, за що вона відповідає в комп'ютері.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Віртуальний системний блок (Материнська плата) -->
+                <div class="lg:col-span-7 flex flex-col items-center">
+                    <div id="pc-case" class="w-full max-w-2xl bg-slate-900 border-4 border-slate-700 rounded-3xl p-4 sm:p-6 relative shadow-2xl smooth-transition">
+                        <!-- Верхня панель корпусу -->
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                            <div class="flex items-center gap-2">
+                                <span id="power-led" class="w-3 h-3 rounded-full bg-slate-700 smooth-transition"></span>
+                                <span class="text-xs font-mono text-slate-400 uppercase tracking-widest">ATX Mid-Tower Case</span>
+                            </div>
+                            <button id="s1-power-btn" onclick="powerOnStage1()" disabled class="px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed smooth-transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                <span>Увімкнути ПК</span>
+                            </button>
+                        </div>
+
+                        <!-- Схема всередині корпусу -->
+                        <div class="grid grid-cols-12 gap-3 sm:gap-4 bg-slate-950/90 p-3 sm:p-4 rounded-2xl border border-slate-800/80 relative">
+                            
+                            <!-- Зона Материнської плати (ліва та центральна частина - 8 колонок) -->
+                            <div class="col-span-12 sm:col-span-8 bg-emerald-950/20 border-2 border-emerald-900/50 rounded-xl p-3 relative flex flex-col gap-3">
+                                <div class="text-[10px] font-mono text-emerald-500/70 uppercase tracking-widest flex justify-between">
+                                    <span>Motherboard ATX</span>
+                                    <span>LGA1700 / DDR4</span>
+                                </div>
+
+                                <!-- Верхня частина плати: Сокет процесора + Кулер та Слоти ОЗП -->
+                                <div class="grid grid-cols-12 gap-3 items-stretch">
+                                    <!-- Сокет CPU (і поверх нього Кулер) -->
+                                    <div class="col-span-7 flex flex-col gap-2">
+                                        <!-- Слот Процесора -->
+                                        <div id="slot-cpu" data-slot="cpu" onclick="handleSlotClick('cpu')" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'cpu')"
+                                             class="pc-slot h-24 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/90 flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-sky-400 smooth-transition relative">
+                                            <span class="text-xs font-bold text-slate-400 pointer-events-none">Сокет CPU</span>
+                                            <span class="text-[10px] text-slate-500 pointer-events-none">(Процесор)</span>
+                                        </div>
+                                        <!-- Слот Кулера -->
+                                        <div id="slot-cooler" data-slot="cooler" onclick="handleSlotClick('cooler')" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'cooler')"
+                                             class="pc-slot h-20 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/90 flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-sky-400 smooth-transition">
+                                            <span class="text-xs font-bold text-slate-400 pointer-events-none">Кріплення Cooler</span>
+                                            <span class="text-[10px] text-slate-500 pointer-events-none">(Охолодження)</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Слоти Оперативної пам'яті (RAM) -->
+                                    <div id="slot-ram" data-slot="ram" onclick="handleSlotClick('ram')" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'ram')"
+                                         class="pc-slot col-span-5 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/90 flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-sky-400 smooth-transition">
+                                        <span class="text-xs font-bold text-slate-400 pointer-events-none">Слоти DIMM</span>
+                                        <span class="text-[10px] text-slate-500 pointer-events-none">(Оперативна пам'ять)</span>
+                                    </div>
+                                </div>
+
+                                <!-- Нижня частина плати: Слот Відеокарти (PCI-E) -->
+                                <div id="slot-gpu" data-slot="gpu" onclick="handleSlotClick('gpu')" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'gpu')"
+                                     class="pc-slot h-24 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/90 flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-sky-400 smooth-transition mt-1">
+                                    <span class="text-xs font-bold text-slate-400 pointer-events-none">Слот PCI-Express x16</span>
+                                    <span class="text-[10px] text-slate-500 pointer-events-none">(Відеокарта)</span>
+                                </div>
+                            </div>
+
+                            <!-- Права частина корпусу: Відсік накопичувачів (SSD) та Блок живлення (PSU) -->
+                            <div class="col-span-12 sm:col-span-4 flex flex-col justify-between gap-3">
+                                <!-- Відсік для SSD -->
+                                <div id="slot-ssd" data-slot="ssd" onclick="handleSlotClick('ssd')" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'ssd')"
+                                     class="pc-slot h-32 sm:h-36 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/90 flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-sky-400 smooth-transition">
+                                    <span class="text-xs font-bold text-slate-400 pointer-events-none">Відсік 2.5" / M.2</span>
+                                    <span class="text-[10px] text-slate-500 pointer-events-none">(SSD Накопичувач)</span>
+                                </div>
+
+                                <!-- Відсік Блоку живлення -->
+                                <div id="slot-psu" data-slot="psu" onclick="handleSlotClick('psu')" ondragover="allowDrop(event)" ondrop="handleDrop(event, 'psu')"
+                                     class="pc-slot h-32 sm:h-36 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/90 flex flex-col items-center justify-center p-2 text-center cursor-pointer hover:border-sky-400 smooth-transition">
+                                    <span class="text-xs font-bold text-slate-400 pointer-events-none">Нижній кожух ATX</span>
+                                    <span class="text-[10px] text-slate-500 pointer-events-none">(Блок живлення)</span>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        <!-- Баннер успішного запуску Етапу 1 -->
+                        <div id="s1-success-banner" class="hidden mt-4 p-4 rounded-2xl bg-emerald-950/90 border border-emerald-500/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl shrink-0">✓</div>
+                                <div>
+                                    <h4 class="font-bold text-emerald-300 text-sm sm:text-base">Системний блок успішно запущено!</h4>
+                                    <p class="text-xs text-emerald-200/80">Усі деталі на своїх місцях, кулер крутиться, система завантажується.</p>
+                                </div>
+                            </div>
+                            <button onclick="switchStage(2)" class="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm whitespace-nowrap smooth-transition shadow-lg shadow-emerald-500/20">
+                                До Етапу 2 →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- ЕТАП 2: БЮДЖЕТНИЙ ЗБИРАЧ (ПІДБІР КОНФІГУРАЦІЇ)            -->
+        <!-- ========================================================= -->
+        <section id="stage-2" class="hidden space-y-6">
+            <!-- Картка замовлення від клієнта -->
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                    <div>
+                        <span class="inline-block px-2.5 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-bold uppercase tracking-wider mb-1">Етап 2 • Робота з клієнтом</span>
+                        <h2 id="s2-client-title" class="text-lg sm:text-xl font-bold text-white">Замовлення #1: Комп'ютер для навчання та офісу</h2>
+                        <p id="s2-client-desc" class="text-sm text-slate-300 mt-1">«Привіт! Мені потрібен надійний ПК для навчання, рефератів, YouTube та легких програм. Головне — вкластися в бюджет і не переплачувати за зайве!»</p>
+                    </div>
+                    <!-- Перемикач замовлень -->
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="loadBudgetTask(0)" id="task-btn-0" class="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white smooth-transition">Замовлення 1 (Офіс)</button>
+                        <button onclick="loadBudgetTask(1)" id="task-btn-1" class="px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 hover:text-white smooth-transition">Замовлення 2 (Ігри)</button>
+                    </div>
+                </div>
+
+                <!-- Шкала бюджету та вимог -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
+                    <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                        <div class="text-xs text-slate-400">Витрачено / Бюджет клієнта</div>
+                        <div class="text-lg sm:text-xl font-extrabold mt-0.5">
+                            <span id="s2-spent" class="text-emerald-400">0</span>
+                            <span class="text-slate-500 text-sm font-normal"> / <span id="s2-budget">15 000</span> грн</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                            <div id="s2-budget-bar" class="h-full bg-emerald-500 smooth-transition" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                        <div class="text-xs text-slate-400">Потужність збірки (Продуктивність)</div>
+                        <div class="text-lg sm:text-xl font-extrabold mt-0.5">
+                            <span id="s2-power" class="text-sky-400">0</span>
+                            <span class="text-slate-500 text-sm font-normal"> / мін. <span id="s2-req-power">35</span> балів</span>
+                        </div>
+                        <div class="w-full h-2 bg-slate-800 rounded-full mt-2 overflow-hidden">
+                            <div id="s2-power-bar" class="h-full bg-sky-500 smooth-transition" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs text-slate-400">Готовність замовлення</div>
+                            <div id="s2-status-text" class="text-sm font-bold text-amber-400 mt-1">Оберіть усі 4 компоненти</div>
+                        </div>
+                        <button onclick="checkBudgetBuild()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-sky-500 hover:from-indigo-400 hover:to-sky-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-indigo-500/20 smooth-transition">
+                            Перевірити
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Вибір комплектуючих у магазині -->
+            <div id="s2-shop-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Категорії товарів генеруються через JS -->
+            </div>
+
+            <!-- Результат перевірки збірки -->
+            <div id="s2-feedback" class="hidden p-4 rounded-2xl border text-sm"></div>
+        </section>
+
+        <!-- ========================================================= -->
+        <!-- ЕТАП 3: МАЙСТЕРНЯ РЕМОНТУ (ЗНАЙДИ ПОЛОМКУ)                -->
+        <!-- ========================================================= -->
+        <section id="stage-3" class="hidden space-y-6">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <span class="inline-block px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 text-xs font-bold uppercase tracking-wider mb-1">Етап 3 • Діагностика несправностей</span>
+                    <h2 class="text-lg sm:text-xl font-bold text-white">Майстерня ремонту ПК</h2>
+                    <p class="text-sm text-slate-400 mt-1">Прочитай скаргу користувача, знайди несправну деталь у системному блоці та натисни на неї для заміни.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-400">Випадок:</span>
+                    <span id="s3-case-counter" class="px-3 py-1 rounded-lg bg-slate-800 font-bold text-amber-400 text-sm">1 / 3</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+                <!-- Ліва колонка: Скарга клієнта та симптоми -->
+                <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center text-2xl">
+                            🔧
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400 uppercase font-bold">Квитанція про прийом</div>
+                            <h3 id="s3-problem-title" class="font-bold text-lg text-white">ПК вимикається через 10 секунд</h3>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+                        <div class="text-xs font-bold text-amber-400 uppercase">Опис проблеми зі слів власника:</div>
+                        <p id="s3-problem-desc" class="text-sm text-slate-300 leading-relaxed">
+                            «Натискаю кнопку живлення, комп'ютер вмикається, але вентилятор над процесором взагалі не крутиться. Через кілька секунд комп'ютер аварійно вимикається, щоб не згоріти!»
+                        </p>
+                    </div>
+
+                    <div id="s3-result-box" class="hidden p-4 rounded-xl border text-sm"></div>
+
+                    <div class="pt-2 flex justify-between items-center">
+                        <button onclick="prevRepairCase()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-300 smooth-transition">← Попередній</button>
+                        <button id="s3-next-btn" onclick="nextRepairCase()" class="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs sm:text-sm smooth-transition">Наступний випадок →</button>
+                    </div>
+                </div>
+
+                <!-- Права колонка: Інтерактивний системний блок для кліку по зламаній деталі -->
+                <div class="lg:col-span-7">
+                    <div class="bg-slate-900 border-2 border-slate-700 rounded-3xl p-4 sm:p-6">
+                        <div class="text-xs text-center text-slate-400 mb-3 font-medium">Натисни на деталь, яку потрібно замінити або підключити:</div>
+                        <div id="s3-pc-board" class="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                            <!-- Кнопки деталей генеруються через JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Модальне вікно завершення всього тренажера -->
+    <div id="final-modal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-sky-500 mx-auto flex items-center justify-center text-3xl text-slate-950 font-bold shadow-lg">
+                🏆
+            </div>
+            <h3 class="text-2xl font-extrabold text-white">Вітаємо! Тренажер пройдено!</h3>
+            <p class="text-sm text-slate-300">
+                Ти успішно зібрав системний блок, підібрав комплектуючі під бюджет клієнта та полагодив несправні комп'ютери!
+            </p>
+            <div class="bg-slate-950 rounded-2xl p-4 border border-slate-800">
+                <div class="text-xs text-slate-400">Твій фінальний результат</div>
+                <div class="text-3xl font-extrabold text-amber-400 mt-1"><span id="modal-final-score">0</span> балів</div>
+            </div>
+            <button onclick="closeFinalModal()" class="w-full py-3 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold text-sm smooth-transition">
+                Чудово! Продовжити перегляд
+            </button>
+        </div>
+    </div>
+
+    <footer class="border-t border-slate-900 py-4 text-center text-xs text-slate-500">
+        Інтерактивний навчальний тренажер для учнів 10 класу • Інформатика
+    </footer>
+
+    <script>
+        // ==========================================
+        // ЗВУКОВИЙ РУШІЙ (Tone.js без зовнішніх файлів)
+        // ==========================================
+        let soundEnabled = true;
+        let synth = null;
+
+        function initAudio() {
+            if (!synth && typeof Tone !== 'undefined') {
+                synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -8;
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                if (Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                const now = Tone.now();
+                if (type === 'click') {
+                    synth.triggerAttackRelease("C5", "32n", now);
+                } else if (type === 'install') {
+                    synth.triggerAttackRelease("E5", "16n", now);
+                    synth.triggerAttackRelease("G5", "16n", now + 0.08);
+                } else if (type === 'error') {
+                    synth.triggerAttackRelease("A2", "8n", now);
+                } else if (type === 'poweron') {
+                    synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n", now);
+                } else if (type === 'win') {
+                    synth.triggerAttackRelease("C5", "16n", now);
+                    synth.triggerAttackRelease("E5", "16n", now + 0.1);
+                    synth.triggerAttackRelease("G5", "16n", now + 0.2);
+                    synth.triggerAttackRelease("C6", "4n", now + 0.3);
+                }
+            } catch (e) {
+                // Ігноруємо помилки автозапуску аудіо до першої взаємодії
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            document.getElementById('sound-icon-on').classList.toggle('hidden', !soundEnabled);
+            document.getElementById('sound-icon-off').classList.toggle('hidden', soundEnabled);
+        }
+
+        // ==========================================
+        // ЗАГАЛЬНИЙ СТАН ГРИ ТА НАВІГАЦІЯ
+        // ==========================================
+        let totalScore = 0;
+        const completedStages = { 1: false, 2: false, 3: false };
+
+        function addScore(points) {
+            totalScore += points;
+            document.getElementById('total-score').textContent = totalScore;
+        }
+
+        function switchStage(stageNum) {
+            playSound('click');
+            [1, 2, 3].forEach(num => {
+                document.getElementById(`stage-${num}`).classList.toggle('hidden', num !== stageNum);
+                const tab = document.getElementById(`tab-${num}`);
+                if (num === stageNum) {
+                    tab.classList.add('bg-sky-600', 'text-white', 'shadow');
+                    tab.classList.remove('text-slate-400', 'hover:text-white');
+                } else {
+                    tab.classList.remove('bg-sky-600', 'text-white', 'shadow');
+                    tab.classList.add('text-slate-400', 'hover:text-white');
+                }
+            });
+        }
+
+        function markStageComplete(stageNum) {
+            if (!completedStages[stageNum]) {
+                completedStages[stageNum] = true;
+                document.getElementById(`badge-${stageNum}`).classList.remove('hidden');
+                if (completedStages[1] && completedStages[2] && completedStages[3]) {
+                    setTimeout(() => {
+                        document.getElementById('modal-final-score').textContent = totalScore;
+                        document.getElementById('final-modal').classList.remove('hidden');
+                        playSound('win');
+                    }, 900);
+                }
+            }
+        }
+
+        function closeFinalModal() {
+            document.getElementById('final-modal').classList.add('hidden');
+        }
+
+        // ==========================================
+        // ЕТАП 1: ДАНІ ТА ЛОГІКА ЗБІРКИ ПК
+        // ==========================================
+        const pcParts = [
+            {
+                id: 'cpu',
+                name: 'Процесор (CPU)',
+                short: 'Intel Core i5',
+                desc: '«Мозок» комп’ютера. Виконує всі обчислення та команди програм. Встановлюється у спеціальний роз’єм — сокет.',
+                icon: `<svg class="w-8 h-8 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" stroke-width="2"/><path stroke-width="2" d="M9 1v3m6-3v3M9 20v3m6-3v3M1 9h3m-3 6h3m16-6h3m-3 6h3"/></svg>`
+            },
+            {
+                id: 'cooler',
+                name: 'Кулер (Охолодження)',
+                short: 'Баштовий вентилятор',
+                desc: 'Відводить тепло від процесора, щоб він не перегрівся і не вимкнувся під час роботи.',
+                icon: `<svg class="w-8 h-8 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="2" stroke-width="2"/><path stroke-width="2" d="M12 3v4m0 10v4M3 12h4m10 0h4"/></svg>`
+            },
+            {
+                id: 'ram',
+                name: 'Оперативна пам’ять',
+                short: '16 ГБ DDR4',
+                desc: '«Швидкий робочий стіл» ПК. Тут тимчасово зберігаються відкриті програми та ігри, поки комп’ютер увімкнений.',
+                icon: `<svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="1" stroke-width="2"/><path stroke-width="2" d="M7 11v2m4-2v2m4-2v2m4-2v2"/></svg>`
+            },
+            {
+                id: 'gpu',
+                name: 'Відеокарта (GPU)',
+                short: 'GeForce RTX',
+                desc: 'Відповідає за створення картинки на моніторі, 3D-графіку в іграх та обробку відео.',
+                icon: `<svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2" stroke-width="2"/><circle cx="8" cy="12" r="3" stroke-width="2"/><circle cx="16" cy="12" r="3" stroke-width="2"/></svg>`
+            },
+            {
+                id: 'ssd',
+                name: 'SSD-накопичувач',
+                short: '512 ГБ NVMe/SATA',
+                desc: 'Постійна пам’ять комп’ютера. Тут зберігаються Windows, усі твої файли, фото та ігри навіть після вимкнення живлення.',
+                icon: `<svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" stroke-width="2"/><path stroke-width="2" d="M8 16h8M8 8h2"/></svg>`
+            },
+            {
+                id: 'psu',
+                name: 'Блок живлення (PSU)',
+                short: '600W 80+ Bronze',
+                desc: '«Серце» системи. Перетворює напругу з розетки (220В) у безпечний струм для кожної деталі комп’ютера.',
+                icon: `<svg class="w-8 h-8 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" stroke-width="2"/><path stroke-width="2" d="M13 9l-3 3h4l-3 3"/></svg>`
+            }
+        ];
+
+        let selectedPartId = null;
+        let installedParts = new Set();
+        let s1ScoredParts = new Set();
+
+        function renderStage1Inventory() {
+            const container = document.getElementById('parts-inventory');
+            container.innerHTML = '';
+
+            pcParts.forEach(part => {
+                const isInstalled = installedParts.has(part.id);
+                const isSelected = selectedPartId === part.id;
+
+                const card = document.createElement('div');
+                card.draggable = !isInstalled;
+                card.id = `part-card-${part.id}`;
+                card.className = `p-3 rounded-xl border smooth-transition flex flex-col items-center text-center gap-1.5 relative ${
+                    isInstalled
+                        ? 'bg-slate-950/40 border-slate-800/50 opacity-40 cursor-default'
+                        : isSelected
+                            ? 'bg-sky-950/60 border-sky-400 ring-2 ring-sky-400/40 cursor-pointer scale-[1.02]'
+                            : 'bg-slate-950 border-slate-800 hover:border-slate-600 cursor-grab active:cursor-grabbing'
+                }`;
+
+                if (!isInstalled) {
+                    card.onclick = () => selectPart(part.id);
+                    card.ondragstart = (e) => {
+                        selectPart(part.id);
+                        e.dataTransfer.setData('text/plain', part.id);
+                    };
+                }
+
+                card.innerHTML = `
+                    <div class="p-2 rounded-lg bg-slate-900 border border-slate-800">${part.icon}</div>
+                    <div class="font-bold text-xs sm:text-sm text-slate-100 leading-tight">${part.name}</div>
+                    <div class="text-[11px] text-slate-400">${part.short}</div>
+                    ${isInstalled ? '<span class="absolute top-2 right-2 text-emerald-400 text-xs font-bold">✓</span>' : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectPart(partId) {
+            if (installedParts.has(partId)) return;
+            playSound('click');
+            selectedPartId = partId;
+            const part = pcParts.find(p => p.id === partId);
+
+            // Оновлюємо довідник майстра
+            document.getElementById('info-title').textContent = part.name;
+            document.getElementById('info-desc').textContent = part.desc;
+
+            // Підсвічуємо слоти
+            document.querySelectorAll('.pc-slot').forEach(slot => {
+                const sId = slot.getAttribute('data-slot');
+                if (!installedParts.has(sId)) {
+                    slot.classList.add('slot-highlight');
+                }
+            });
+
+            renderStage1Inventory();
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function handleDrop(e, slotId) {
+            e.preventDefault();
+            const partId = e.dataTransfer.getData('text/plain') || selectedPartId;
+            attemptInstall(partId, slotId);
+        }
+
+        function handleSlotClick(slotId) {
+            if (!selectedPartId) {
+                // Якщо деталь не обрана, покажемо підказку про слот
+                const part = pcParts.find(p => p.id === slotId);
+                if (part && !installedParts.has(slotId)) {
+                    document.getElementById('info-title').textContent = `Слот для: ${part.name}`;
+                    document.getElementById('info-desc').textContent = 'Спочатку обери відповідну деталь на столі зліва (натисни на неї або перетягни сюди).';
+                }
+                return;
+            }
+            attemptInstall(selectedPartId, slotId);
+        }
+
+        function attemptInstall(partId, slotId) {
+            if (!partId || installedParts.has(slotId)) return;
+
+            if (partId === slotId) {
+                // Перевірка логіки: бажано процесор ставити перед кулером, але дозволяємо з дружньою підказкою
+                if (slotId === 'cooler' && !installedParts.has('cpu')) {
+                    playSound('error');
+                    document.getElementById('info-title').textContent = 'Увага! Порушено порядок збірки';
+                    document.getElementById('info-desc').textContent = 'Кулер встановлюється поверх процесора! Спочатку встанови Процесор (CPU) у сокет.';
+                    return;
+                }
+
+                // Успішне встановлення
+                playSound('install');
+                installedParts.add(slotId);
+                if (!s1ScoredParts.has(slotId)) {
+                    s1ScoredParts.add(slotId);
+                    addScore(15);
+                }
+
+                const part = pcParts.find(p => p.id === slotId);
+                const slotEl = document.getElementById(`slot-${slotId}`);
+                slotEl.classList.remove('border-dashed', 'border-slate-600', 'slot-highlight', 'bg-slate-900/90');
+                slotEl.classList.add('border-solid', 'border-emerald-500/70', 'bg-emerald-950/40');
+                slotEl.innerHTML = `
+                    <div class="flex flex-col items-center justify-center gap-1">
+                        <div class="${slotId === 'cooler' ? 'cooler-icon-wrapper' : ''}">${part.icon}</div>
+                        <span class="text-xs font-bold text-emerald-300 leading-tight">${part.name}</span>
+                        <span class="text-[10px] text-emerald-400/80">Встановлено ✓</span>
+                    </div>
+                `;
+
+                document.getElementById('info-title').textContent = `✓ Встановлено: ${part.name}`;
+                document.getElementById('info-desc').textContent = part.desc;
+
+                selectedPartId = null;
+                document.querySelectorAll('.pc-slot').forEach(s => s.classList.remove('slot-highlight'));
+                document.getElementById('s1-installed-count').textContent = installedParts.size;
+
+                renderStage1Inventory();
+
+                if (installedParts.size === 6) {
+                    const pwrBtn = document.getElementById('s1-power-btn');
+                    pwrBtn.disabled = false;
+                    pwrBtn.classList.remove('bg-slate-800', 'text-slate-500', 'border-slate-700', 'cursor-not-allowed');
+                    pwrBtn.classList.add('bg-emerald-500', 'hover:bg-emerald-400', 'text-slate-950', 'border-emerald-400', 'cursor-pointer', 'animate-bounce');
+                }
+            } else {
+                // Помилковий слот
+                playSound('error');
+                const slotEl = document.getElementById(`slot-${slotId}`);
+                slotEl.classList.add('border-rose-500', 'bg-rose-950/30');
+                setTimeout(() => {
+                    slotEl.classList.remove('border-rose-500', 'bg-rose-950/30');
+                }, 600);
+
+                const chosenPart = pcParts.find(p => p.id === partId);
+                document.getElementById('info-title').textContent = 'Не підходить роз’єм!';
+                document.getElementById('info-desc').textContent = `${chosenPart.name} не підходить до цього слота. Подивись уважно на підписи гнізд у корпусі.`;
+            }
+        }
+
+        function powerOnStage1() {
+            if (installedParts.size < 6) return;
+            playSound('poweron');
+
+            const pcCase = document.getElementById('pc-case');
+            pcCase.classList.add('pc-powered-on');
+
+            const led = document.getElementById('power-led');
+            led.classList.remove('bg-slate-700');
+            led.classList.add('bg-emerald-400', 'shadow-lg', 'shadow-emerald-400');
+
+            const pwrBtn = document.getElementById('s1-power-btn');
+            pwrBtn.classList.remove('animate-bounce');
+            pwrBtn.innerHTML = `<span>Працює ✓</span>`;
+
+            // Запускаємо обертання кулера
+            const coolerWrapper = document.querySelector('.cooler-icon-wrapper svg');
+            if (coolerWrapper) {
+                coolerWrapper.classList.add('fan-spin');
+            }
+
+            document.getElementById('s1-success-banner').classList.remove('hidden');
+            addScore(30);
+            markStageComplete(1);
+        }
+
+        function resetStage1() {
+            playSound('click');
+            installedParts.clear();
+            selectedPartId = null;
+            document.getElementById('s1-installed-count').textContent = '0';
+            document.getElementById('s1-success-banner').classList.add('hidden');
+            document.getElementById('pc-case').classList.remove('pc-powered-on');
+            document.getElementById('power-led').className = 'w-3 h-3 rounded-full bg-slate-700 smooth-transition';
+
+            const pwrBtn = document.getElementById('s1-power-btn');
+            pwrBtn.disabled = true;
+            pwrBtn.className = 'px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider flex items-center gap-2 bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed smooth-transition';
+            pwrBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg><span>Увімкнути ПК</span>`;
+
+            const slotLabels = {
+                cpu: ['Сокет CPU', '(Процесор)'],
+                cooler: ['Кріплення Cooler', '(Охолодження)'],
+                ram: ['Слоти DIMM', '(Оперативна пам\'ять)'],
+                gpu: ['Слот PCI-Express x16', '(Відеокарта)'],
+                ssd: ['Відсік 2.5" / M.2', '(SSD Накопичувач)'],
+                psu: ['Нижній кожух ATX', '(Блок живлення)']
+            };
+
+            Object.keys(slotLabels).forEach(id => {
+                const el = document.getElementById(`slot-${id}`);
+                el.className = el.className
+                    .replace('border-solid border-emerald-500/70 bg-emerald-950/40', '')
+                    .replace('slot-highlight', '');
+                el.classList.add('border-dashed', 'border-slate-600', 'bg-slate-900/90');
+                el.innerHTML = `
+                    <span class="text-xs font-bold text-slate-400 pointer-events-none">${slotLabels[id][0]}</span>
+                    <span class="text-[10px] text-slate-500 pointer-events-none">${slotLabels[id][1]}</span>
+                `;
+            });
+
+            renderStage1Inventory();
+        }
+
+        // ==========================================
+        // ЕТАП 2: БЮДЖЕТНИЙ ЗБИРАЧ
+        // ==========================================
+        const budgetTasks = [
+            {
+                id: 0,
+                title: "Замовлення #1: Комп'ютер для навчання та офісу",
+                desc: "«Привіт! Мені потрібен надійний ПК для навчання, рефератів, YouTube та легких програм. Головне — вкластися в 15 000 грн і набрати хоча б 35 балів потужності!»",
+                budget: 15000,
+                minPower: 35,
+                completed: false
+            },
+            {
+                id: 1,
+                title: "Замовлення #2: Потужний ігровий ПК",
+                desc: "«Хочу грати в сучасні ігри на високих налаштуваннях та монтувати відео для TikTok/YouTube! Бюджет — до 40 000 грн, потрібна потужність не менше 85 балів!»",
+                budget: 40000,
+                minPower: 85,
+                completed: false
+            }
+        ];
+
+        const shopCategories = [
+            {
+                key: 'cpu',
+                title: '1. Процесор (CPU)',
+                items: [
+                    { id: 'c1', name: 'Intel Core i3 (Базовий)', price: 4000, power: 12, note: 'Для навчання та браузера' },
+                    { id: 'c2', name: 'AMD Ryzen 5 (Оптимальний)', price: 7500, power: 24, note: 'Універсальний вибір' },
+                    { id: 'c3', name: 'Intel Core i7 (Ігровий)', price: 14000, power: 38, note: 'Максимальна швидкість' }
+                ]
+            },
+            {
+                key: 'gpu',
+                title: '2. Відеокарта (GPU)',
+                items: [
+                    { id: 'g1', name: 'Вбудована графіка', price: 1500, power: 5, note: 'Тільки для відео та офісу' },
+                    { id: 'g2', name: 'GeForce GTX 1650 (Середня)', price: 7000, power: 20, note: 'Для легких ігор' },
+                    { id: 'g3', name: 'GeForce RTX 4060 (Потужна)', price: 15500, power: 40, note: 'Сучасні ігри та монтаж' }
+                ]
+            },
+            {
+                key: 'ram',
+                title: '3. Оперативна пам’ять (RAM)',
+                items: [
+                    { id: 'r1', name: '8 ГБ DDR4', price: 1500, power: 8, note: 'Мінімум для системи' },
+                    { id: 'r2', name: '16 ГБ DDR4', price: 2800, power: 16, note: 'Золотий стандарт' },
+                    { id: 'r3', name: '32 ГБ DDR5', price: 5500, power: 25, note: 'Для важкого монтажу' }
+                ]
+            },
+            {
+                key: 'ssd',
+                title: '4. Накопичувач (SSD) + БЖ',
+                items: [
+                    { id: 's1', name: 'SSD 256 ГБ + БЖ 450W', price: 2500, power: 10, note: 'Базовий комплект' },
+                    { id: 's2', name: 'SSD 512 ГБ + БЖ 600W', price: 4000, power: 15, note: 'Швидкий та надійний' },
+                    { id: 's3', name: 'SSD 1 ТБ NVMe + БЖ 750W', price: 6200, power: 22, note: 'Великий запас місця' }
+                ]
+            }
+        ];
+
+        let currentTaskIdx = 0;
+        let selectedShopItems = { cpu: null, gpu: null, ram: null, ssd: null };
+
+        function loadBudgetTask(idx) {
+            playSound('click');
+            currentTaskIdx = idx;
+            selectedShopItems = { cpu: null, gpu: null, ram: null, ssd: null };
+
+            const task = budgetTasks[idx];
+            document.getElementById('s2-client-title').textContent = task.title;
+            document.getElementById('s2-client-desc').textContent = task.desc;
+            document.getElementById('s2-budget').textContent = task.budget.toLocaleString('uk-UA');
+            document.getElementById('s2-req-power').textContent = task.minPower;
+
+            [0, 1].forEach(i => {
+                const btn = document.getElementById(`task-btn-${i}`);
+                if (i === idx) {
+                    btn.className = 'px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 text-white smooth-transition';
+                } else {
+                    btn.className = 'px-3 py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400 hover:text-white smooth-transition';
+                }
+            });
+
+            document.getElementById('s2-feedback').classList.add('hidden');
+            renderShop();
+            updateBudgetStats();
+        }
+
+        function renderShop() {
+            const grid = document.getElementById('s2-shop-grid');
+            grid.innerHTML = '';
+
+            shopCategories.forEach(cat => {
+                const box = document.createElement('div');
+                box.className = 'bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3';
+
+                let itemsHtml = '';
+                cat.items.forEach(item => {
+                    const isSelected = selectedShopItems[cat.key]?.id === item.id;
+                    itemsHtml += `
+                        <button onclick="selectShopItem('${cat.key}', '${item.id}')"
+                            class="w-full text-left p-3 rounded-xl border smooth-transition flex items-center justify-between gap-2 ${
+                                isSelected
+                                    ? 'bg-indigo-950/70 border-indigo-400 ring-1 ring-indigo-400'
+                                    : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                            }">
+                            <div>
+                                <div class="font-bold text-xs sm:text-sm text-white">${item.name}</div>
+                                <div class="text-[11px] text-slate-400">${item.note} • <span class="text-sky-400 font-semibold">+${item.power} потужн.</span></div>
+                            </div>
+                            <div class="text-right shrink-0">
+                                <div class="font-extrabold text-xs sm:text-sm text-emerald-400">${item.price.toLocaleString('uk-UA')} грн</div>
+                            </div>
+                        </button>
+                    `;
+                });
+
+                box.innerHTML = `
+                    <h3 class="font-bold text-sm text-slate-200">${cat.title}</h3>
+                    <div class="space-y-2">${itemsHtml}</div>
+                `;
+                grid.appendChild(box);
+            });
+        }
+
+        function selectShopItem(catKey, itemId) {
+            playSound('click');
+            const category = shopCategories.find(c => c.key === catKey);
+            const item = category.items.find(i => i.id === itemId);
+            selectedShopItems[catKey] = item;
+            document.getElementById('s2-feedback').classList.add('hidden');
+            renderShop();
+            updateBudgetStats();
+        }
+
+        function updateBudgetStats() {
+            const task = budgetTasks[currentTaskIdx];
+            let spent = 0;
+            let power = 0;
+            let count = 0;
+
+            Object.values(selectedShopItems).forEach(item => {
+                if (item) {
+                    spent += item.price;
+                    power += item.power;
+                    count++;
+                }
+            });
+
+            const spentEl = document.getElementById('s2-spent');
+            spentEl.textContent = spent.toLocaleString('uk-UA');
+            spentEl.className = spent > task.budget ? 'text-rose-400' : 'text-emerald-400';
+
+            const budgetPct = Math.min(100, (spent / task.budget) * 100);
+            const budgetBar = document.getElementById('s2-budget-bar');
+            budgetBar.style.width = `${budgetPct}%`;
+            budgetBar.className = `h-full smooth-transition ${spent > task.budget ? 'bg-rose-500' : 'bg-emerald-500'}`;
+
+            const powerEl = document.getElementById('s2-power');
+            powerEl.textContent = power;
+            powerEl.className = power >= task.minPower ? 'text-emerald-400' : 'text-sky-400';
+
+            const powerPct = Math.min(100, (power / task.minPower) * 100);
+            document.getElementById('s2-power-bar').style.width = `${powerPct}%`;
+
+            const statusEl = document.getElementById('s2-status-text');
+            if (count < 4) {
+                statusEl.textContent = `Обрано ${count} з 4 деталей`;
+                statusEl.className = 'text-sm font-bold text-amber-400 mt-1';
+            } else {
+                statusEl.textContent = 'Усі деталі обрано! Тисни «Перевірити»';
+                statusEl.className = 'text-sm font-bold text-emerald-400 mt-1';
+            }
+        }
+
+        function checkBudgetBuild() {
+            const task = budgetTasks[currentTaskIdx];
+            const fb = document.getElementById('s2-feedback');
+            fb.classList.remove('hidden');
+
+            const items = Object.values(selectedShopItems);
+            if (items.some(i => i === null)) {
+                playSound('error');
+                fb.className = 'p-4 rounded-2xl border bg-amber-950/60 border-amber-500/50 text-amber-200 text-sm';
+                fb.innerHTML = '<strong>Не всі деталі обрано!</strong> Будь ласка, обери по одному варіанту в кожній із 4 категорій.';
+                return;
+            }
+
+            const spent = items.reduce((sum, i) => sum + i.price, 0);
+            const power = items.reduce((sum, i) => sum + i.power, 0);
+
+            if (spent > task.budget) {
+                playSound('error');
+                fb.className = 'p-4 rounded-2xl border bg-rose-950/60 border-rose-500/50 text-rose-200 text-sm';
+                fb.innerHTML = `<strong>Перевищено бюджет!</strong> Ти витратив ${spent.toLocaleString('uk-UA')} грн, а у клієнта є лише ${task.budget.toLocaleString('uk-UA')} грн. Спробуй замінити одну з деталей на дешевшу.`;
+                return;
+            }
+
+            if (power < task.minPower) {
+                playSound('error');
+                fb.className = 'p-4 rounded-2xl border bg-rose-950/60 border-rose-500/50 text-rose-200 text-sm';
+                fb.innerHTML = `<strong>Занадто слабка конфігурація!</strong> Потужність збірки склала ${power} балів, а клієнту потрібно щонайменше ${task.minPower} балів. Залишок бюджету дозволяє взяти кращі комплектуючі!`;
+                return;
+            }
+
+            // Успіх!
+            playSound('win');
+            if (!task.completed) {
+                task.completed = true;
+                addScore(50);
+            }
+
+            const nextBtnHtml = currentTaskIdx === 0
+                ? `<button onclick="loadBudgetTask(1)" class="mt-2 sm:mt-0 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs">Наступне замовлення (Ігри) →</button>`
+                : `<button onclick="switchStage(3)" class="mt-2 sm:mt-0 px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs">До Етапу 3 (Ремонт) →</button>`;
+
+            fb.className = 'p-4 rounded-2xl border bg-emerald-950/80 border-emerald-500/60 text-emerald-200 text-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3';
+            fb.innerHTML = `
+                <div>
+                    <strong class="text-emerald-300 text-base">Ідеальна збірка! Клієнт задоволений!</strong>
+                    <p class="text-xs mt-0.5">Вартість: ${spent.toLocaleString('uk-UA')} грн (економія ${(task.budget - spent).toLocaleString('uk-UA')} грн) • Потужність: ${power} балів.</p>
+                </div>
+                ${nextBtnHtml}
+            `;
+
+            if (budgetTasks[0].completed && budgetTasks[1].completed) {
+                markStageComplete(2);
+            }
+        }
+
+        // ==========================================
+        // ЕТАП 3: МАЙСТЕРНЯ РЕМОНТУ
+        // ==========================================
+        const repairCases = [
+            {
+                id: 0,
+                title: "ПК вимикається через 10 секунд",
+                desc: "«Натискаю кнопку живлення, комп'ютер вмикається, але вентилятор над процесором взагалі не крутиться. Через кілька секунд комп'ютер аварійно вимикається, щоб не згоріти!»",
+                brokenPart: "cooler",
+                explanation: "Правильно! Через несправний кулер процесор миттєво перегрівається, і спрацьовує автоматичний захист материнської плати.",
+                solved: false
+            },
+            {
+                id: 1,
+                title: "Системний блок гуде, але монітор чорний",
+                desc: "«Комп'ютер вмикається, вентилятори крутяться, але на екрані монітора напис \"Немає сигналу\". Кабель монітора підключений до відеокарти.»",
+                brokenPart: "gpu",
+                explanation: "Точно! Проблема у відеокарті — саме вона формує та передає зображення на екран монітора.",
+                solved: false
+            },
+            {
+                id: 2,
+                title: "ПК взагалі не реагує на кнопку ввімкнення",
+                desc: "«Перевірив розетку — світло вдома є. Натискаю кнопку запуску на системному блоці — повна тиша, жодна лампочка не світиться і нічого не крутиться.»",
+                brokenPart: "psu",
+                explanation: "Вірно! Якщо комп'ютер не подає жодних ознак життя при справній розетці, першим ділом перевіряють та замінюють блок живлення (PSU).",
+                solved: false
+            }
+        ];
+
+        let currentRepairIdx = 0;
+
+        function renderRepairStage() {
+            const rCase = repairCases[currentRepairIdx];
+            document.getElementById('s3-case-counter').textContent = `${currentRepairIdx + 1} / ${repairCases.length}`;
+            document.getElementById('s3-problem-title').textContent = rCase.title;
+            document.getElementById('s3-problem-desc').textContent = rCase.desc;
+
+            const resBox = document.getElementById('s3-result-box');
+            if (rCase.solved) {
+                resBox.classList.remove('hidden');
+                resBox.className = 'p-4 rounded-xl border bg-emerald-950/70 border-emerald-500/50 text-emerald-200 text-sm';
+                resBox.innerHTML = `<strong>✓ Відремонтовано!</strong> ${rCase.explanation}`;
+            } else {
+                resBox.classList.add('hidden');
+            }
+
+            const board = document.getElementById('s3-pc-board');
+            board.innerHTML = '';
+
+            pcParts.forEach(part => {
+                const isFixedTarget = rCase.solved && part.id === rCase.brokenPart;
+                const btn = document.createElement('button');
+                btn.onclick = () => checkRepairGuess(part.id);
+                btn.className = `p-4 rounded-2xl border smooth-transition flex flex-col items-center text-center gap-2 ${
+                    isFixedTarget
+                        ? 'bg-emerald-950/60 border-emerald-400 text-emerald-200'
+                        : 'bg-slate-900 border-slate-800 hover:border-amber-400 hover:bg-slate-800/80'
+                }`;
+
+                btn.innerHTML = `
+                    <div class="p-2.5 rounded-xl bg-slate-950 border border-slate-800">${part.icon}</div>
+                    <div class="font-bold text-xs sm:text-sm">${part.name}</div>
+                    <span class="text-[11px] ${isFixedTarget ? 'text-emerald-400 font-bold' : 'text-slate-400'}">
+                        ${isFixedTarget ? 'Замінено ✓' : 'Перевірити / Замінити'}
+                    </span>
+                `;
+                board.appendChild(btn);
+            });
+        }
+
+        function checkRepairGuess(partId) {
+            const rCase = repairCases[currentRepairIdx];
+            if (rCase.solved) return;
+
+            const resBox = document.getElementById('s3-result-box');
+            resBox.classList.remove('hidden');
+
+            if (partId === rCase.brokenPart) {
+                playSound('win');
+                rCase.solved = true;
+                addScore(40);
+                renderRepairStage();
+
+                if (repairCases.every(c => c.solved)) {
+                    markStageComplete(3);
+                }
+            } else {
+                playSound('error');
+                const guessedPart = pcParts.find(p => p.id === partId);
+                resBox.className = 'p-4 rounded-xl border bg-rose-950/60 border-rose-500/50 text-rose-200 text-sm';
+                resBox.innerHTML = `<strong>Не та деталь!</strong> Ти перевірив <em>${guessedPart.name}</em>, але ця деталь повністю справна. Перечитай симптоми в квитанції ще раз!`;
+            }
+        }
+
+        function nextRepairCase() {
+            playSound('click');
+            currentRepairIdx = (currentRepairIdx + 1) % repairCases.length;
+            renderRepairStage();
+        }
+
+        function prevRepairCase() {
+            playSound('click');
+            currentRepairIdx = (currentRepairIdx - 1 + repairCases.length) % repairCases.length;
+            renderRepairStage();
+        }
+
+        // Ініціалізація при завантаженні сторінки
+        window.onload = function() {
+            renderStage1Inventory();
+            loadBudgetTask(0);
+            renderRepairStage();
+        };
+    </script>
+</body>
+</html>
